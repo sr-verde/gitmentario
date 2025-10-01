@@ -1,0 +1,45 @@
+[project]
+name = "gitmentario"
+version = "0.1.0"
+description = "Comments for your Git-powered website"
+authors = [
+    {name = "Pascua Theus", email = "dev@theus.name"}
+]
+license = {text = "GPLv2"}
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic-settings (>=2.9.1,<3.0.0)",
+    "fastapi[standard] (>=0.115.14,<0.116.0)",
+    "python-gitlab>=6.4.0",
+    "pyyaml>=6.0.2",
+    "pydantic>=2.11.7",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.2",
+    "pytest>=8.4.2",
+    "ruff>=0.13.2",
+    "types-pyyaml>=6.0.12.20250915",
+]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+
+[tool.ruff.lint]
+select = ["B", "C", "D", "E", "F", "N", "I", "PL", "TD"]
+ignore = ["D203", "D213", "E501", "D100", "D104"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D", "E712", "PLR2004"]
