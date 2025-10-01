@@ -1,8 +1,8 @@
 from functools import cache
 from typing import Annotated, Literal
 
-from pydantic import constr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AnyHttpUrl, constr
+from pydantic_settings import BasieSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -16,13 +16,13 @@ class Settings(BaseSettings):
         For more information on Pydantic settings, see:
             https://docs.pydantic.dev/latest/concepts/pydantic_settings/
     """
-
     repo_path: str = "."
     comments_dir: str = "comments"
     content_dir: str
     git_push: bool = True  # True = direkt pushen, False = MR erstellen
     gitlab_token: str
     gitlab_project_id: str
+    gitlab_url: AnyHttpUrl = Field(default="https://gitlab.com")
     target_branch: str = "main"
     log_level: Annotated[
         Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
@@ -54,3 +54,5 @@ def get_settings() -> Settings:
 
     """
     return Settings()
+
+
