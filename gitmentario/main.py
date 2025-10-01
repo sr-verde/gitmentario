@@ -4,12 +4,15 @@ from logging import Formatter, StreamHandler, getLogger
 from sys import stdout
 
 import gitlab
+import gitlab.v4.objects
 import yaml
 from fastapi import FastAPI, HTTPException
 
 from .helpers import safe_name
 from .models import Comment
 from .settings import get_settings
+
+GITLAB_URL = "https://gitlab.com"
 
 settings = get_settings()
 
@@ -28,13 +31,32 @@ logger.info("API is starting up.")
 def prepare_comment_markdown(
     comment: Comment, content_dir: str, comments_dir: str
 ) -> tuple[str, str]:
+    """Generate a Markdown file representation of a comment with YAML frontmatter.
+
+    This function ensures the target directory exists, creates a unique filename
+    using the current UTC timestamp and a sanitized author name, and formats
+    the comment data (author, timestamp, message) into Markdown with a YAML
+    frontmatter block. It does not write the file to disk, but instead returns
+    the absolute file path and the Markdown content as a string.
+
+    Args:
+        comment (Comment): The comment object containing at least `author`,
+            `message`, `archetype`, and `page_id` attributes.
+        content_dir (str): Base content directory of the website.
+        comments_dir (str): Subdirectory under the page where comments are stored.
+
+    Returns:
+        tuple[str, str]: A tuple containing:
+            - The absolute Markdown file path (str).
+            - The Markdown content with YAML frontmatter (str).
+    """
     abs_comments_dir = os.path.join(
         content_dir, comment.archetype, comment.page_id, comments_dir
     )
     os.makedirs(abs_comments_dir, exist_ok=True)
     timestamp = datetime.utcnow()
     name = safe_name(comment.author)
-    filename = os.path.join(
+    file_path = os.path.join(
         abs_comments_dir, f"{timestamp.strftime('%Y%m%d%H%M%S')}_{name}.md"
     )
     frontmatter = yaml.safe_dump(
@@ -43,88 +65,77 @@ def prepare_comment_markdown(
         default_flow_style=False,
     )
     md_content = f"---\n{frontmatter}---\n\n{comment.message}\n"
-    return (filename, md_content)
+    return (file_path, md_content)
 
 
-def git_push_to_default_branch(
+def get_gitlab_project() -> gitlab.v4.objects.Project:
+    """Return the configured GitLab project instance."""
+    gl = gitlab.Gitlab(GITLAB_URL, private_token=settings.gitlab_token)
+    return gl.projects.get(settings.gitlab_project_id)
+
+
+def check_file_exists(
+    project: gitlab.v4.objects.Project, branch: str, filename: str
+) -> None:
+    """Raise HTTPException if the file already exists on the given branch."""
+    try:
+        project.files.get(file_path=filename, ref=branch)
+        raise HTTPException(status_code=409, detail="Comment already exists.")
+    except gitlab.exceptions.GitlabGetError:
+        return  # File does not exist, continue
+
+
+def create_file(
+    project: gitlab.v4.objects.Project,
+    branch: str,
     filename: str,
     file_content: str,
     name: str,
 ) -> None:
-    logger.debug("Push '%s' to default branch.", filename)
-    gl = gitlab.Gitlab("https://gitlab.com", private_token=settings.gitlab_token)
-    project = gl.projects.get(settings.gitlab_project_id)
-
-    # Get default branch of the project
-    default_branch = project.default_branch
-
-    # Check if file already exists on default branch
-    try:
-        _ = project.files.get(file_path=filename, ref=default_branch)
-        raise HTTPException(status_code=409, detail="Comment already exists.")
-    except gitlab.exceptions.GitlabGetError:
-        # File does not exist on default branch, continue
-        pass
-
-    # Create the file on the default branch directly
+    """Create a file in the given branch with commit message."""
     try:
         project.files.create(
             {
                 "file_path": filename,
-                "branch": default_branch,
-                "content": file_content,
-                "commit_message": f"Add comment from {name}",
-            }
-        )
-    except gitlab.exceptions.GitlabCreateError as exc:
-        logger.error("Failed to create file '%s' on default branch: %s", filename, exc)
-        raise HTTPException(status_code=500, detail="Failed to create comment.")
-
-
-def git_create_branch_and_mr(
-    filename: str,
-    file_content: str,
-    name: str,
-) -> None:
-    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    branch_name = f"gitmentario-{timestamp}-{safe_name(name)}".lower()
-
-    gl = gitlab.Gitlab("https://gitlab.com", private_token=settings.gitlab_token)
-    project = gl.projects.get(settings.gitlab_project_id)
-
-    # Check if file already exists on target branch (to avoid conflict)
-    try:
-        _ = project.files.get(file_path=filename, ref=settings.target_branch)
-        # If no exception, file exists, so raise conflict
-        raise HTTPException(status_code=409, detail="Comment already exists.")
-    except gitlab.exceptions.GitlabGetError:
-        # File does not exist on target branch, proceed
-        pass
-
-    # Create a new branch from the target branch
-    try:
-        project.branches.create({"branch": branch_name, "ref": settings.target_branch})
-    except gitlab.exceptions.GitlabCreateError as exc:
-        logger.error("Failed to create branch '%s': %s", branch_name, exc)
-        raise HTTPException(status_code=500, detail="Failed to create comment.")
-
-    # Create the file on the new branch
-    try:
-        project.files.create(
-            {
-                "file_path": filename,
-                "branch": branch_name,
+                "branch": branch,
                 "content": file_content,
                 "commit_message": f"Add comment from {name}",
             }
         )
     except gitlab.exceptions.GitlabCreateError as exc:
         logger.error(
-            "Failed to create file '%s' in branch '%s': %s", filename, branch_name, exc
+            "Failed to create file '%s' in branch '%s': %s", filename, branch, exc
         )
         raise HTTPException(status_code=500, detail="Failed to create comment.")
 
-    # Create merge request
+
+def git_push_to_default_branch(filename: str, file_content: str, name: str) -> None:
+    """Directly push a file to the project's default branch."""
+    logger.debug("Push '%s' to default branch.", filename)
+    project = get_gitlab_project()
+    default_branch = project.default_branch
+
+    check_file_exists(project, default_branch, filename)
+    create_file(project, default_branch, filename, file_content, name)
+
+
+def git_create_branch_and_mr(filename: str, file_content: str, name: str) -> None:
+    """Create a new branch, push the file, and open a merge request."""
+    project = get_gitlab_project()
+
+    check_file_exists(project, settings.target_branch, filename)
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    branch_name = f"gitmentario-{timestamp}-{safe_name(name)}".lower()
+
+    try:
+        project.branches.create({"branch": branch_name, "ref": settings.target_branch})
+    except gitlab.exceptions.GitlabCreateError as exc:
+        logger.error("Failed to create branch '%s': %s", branch_name, exc)
+        raise HTTPException(status_code=500, detail="Failed to create comment.")
+
+    create_file(project, branch_name, filename, file_content, name)
+
     mr_title = f"💬 Add comment from {name}"
     project.mergerequests.create(
         {
@@ -141,6 +152,7 @@ app = FastAPI()
 
 @app.post("/comment")
 async def add_comment(comment: Comment):
+    """Add a new comment."""
     filename, file_content = prepare_comment_markdown(
         comment, settings.content_dir, settings.comments_dir
     )

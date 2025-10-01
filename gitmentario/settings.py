@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         For more information on Pydantic settings, see:
             https://docs.pydantic.dev/latest/concepts/pydantic_settings/
     """
+
     repo_path: str = "."
     comments_dir: str = "comments"
     content_dir: str
