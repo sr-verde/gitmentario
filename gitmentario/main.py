@@ -6,10 +6,11 @@ import gitlab
 import gitlab.v4.objects
 from fastapi import FastAPI, HTTPException
 
-from .helpers import safe_name
+from .forge.gitlab import GitlabClient
 from .models import Comment
 from .settings import get_settings
 from .ssg import prepare_comment_markdown
+from .utils import safe_name
 
 settings = get_settings()
 
@@ -24,11 +25,17 @@ logger.addHandler(stream_handler)
 
 logger.info("API is starting up.")
 
+if settings.forge.type == "gitlab":
+    gitlab_client = GitlabClient(settings.forge, logger)
+
 
 def get_gitlab_project() -> gitlab.v4.objects.Project:
     """Return the configured GitLab project instance."""
-    gl = gitlab.Gitlab(settings.gitlab_url, private_token=settings.gitlab_token)
-    return gl.projects.get(settings.gitlab_project_id)
+    gl = gitlab.Gitlab(
+        str(settings.forge.base_url),
+        private_token=settings.forge.auth_token.get_secret_value(),
+    )
+    return gl.projects.get(settings.forge.project_id)
 
 
 def check_file_exists(
@@ -63,7 +70,9 @@ def create_file(
         logger.error(
             "Failed to create file '%s' in branch '%s': %s", filename, branch, exc
         )
-        raise HTTPException(status_code=500, detail="Failed to create comment.")
+        raise HTTPException(
+            status_code=500, detail="Failed to create comment."
+        ) from exc
 
 
 def git_push_to_default_branch(filename: str, file_content: str, name: str) -> None:
@@ -89,7 +98,9 @@ def git_create_branch_and_mr(filename: str, file_content: str, name: str) -> Non
         project.branches.create({"branch": branch_name, "ref": settings.target_branch})
     except gitlab.exceptions.GitlabCreateError as exc:
         logger.error("Failed to create branch '%s': %s", branch_name, exc)
-        raise HTTPException(status_code=500, detail="Failed to create comment.")
+        raise HTTPException(
+            status_code=500, detail="Failed to create comment."
+        ) from exc
 
     create_file(project, branch_name, filename, file_content, name)
 

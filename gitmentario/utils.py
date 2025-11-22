@@ -2,7 +2,7 @@ import string
 import unicodedata
 
 
-def safe_name(name: str) -> str:
+def safe_name(name: str, whitespace_replacement: str = "_") -> str:
     """Convert a string into a safe filename-friendly format.
 
     This function normalizes a given string by removing or replacing
@@ -12,6 +12,7 @@ def safe_name(name: str) -> str:
 
     Args:
         name (str): The input string to sanitize.
+        whitespace_replacement (str): Whitespaces will be replaced with this string.
 
     Returns:
         str: A cleaned string suitable for use as a filename.
@@ -24,7 +25,7 @@ def safe_name(name: str) -> str:
     # Strip trailing dots and spaces
     name = name.strip(" .")
     # Replace spaces with underscore
-    name = name.replace(" ", "_")
+    name = name.replace(" ", whitespace_replacement)
     # Allowed characters for safe filenames
     valid_chars = f"-_.() {string.ascii_letters}{string.digits}"
     # Filter to keep only allowed characters

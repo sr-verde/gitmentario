@@ -1,9 +1,6 @@
-import string
-import unicodedata
+from pytest import raises
 
-import pytest
-
-from gitmentario.helpers import safe_name
+from gitmentario.utils import safe_name
 
 
 def test_basic_valid_name():
@@ -20,12 +17,13 @@ def test_forbidden_chars_removed():
     cleaned = safe_name('inva<lid>:na"me/\\|?*')
     assert cleaned == "invalidname"
 
-    cleaned == safe_name("invalid<strong>name</strong>")
+    cleaned = safe_name("invalid<strong>name</strong>")
     assert cleaned == "invalidname"
 
 
 def test_spaces_replaced_by_underscore():
     assert safe_name("this is a test") == "this_is_a_test"
+    assert safe_name("this is a test", "-") == "this-is-a-test"
 
 
 def test_trailing_dots_and_spaces_stripped():
@@ -34,7 +32,7 @@ def test_trailing_dots_and_spaces_stripped():
 
 
 def test_empty_after_cleanup_raises():
-    with pytest.raises(ValueError):
+    with raises(ValueError):
         safe_name("<<::>>")
 
 
