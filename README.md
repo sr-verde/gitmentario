@@ -7,7 +7,6 @@ Comments are pushed as markdown ressources into your website’s Git.
 ## Support
 
 Gitmentario currently only supports [Hugo](https://gohugo.io) as SSG and Gitlab as software forge.
-We plan to support at least Jekyll and Github, too.
 At least Jekyll and Github are planned to be supported, too.
 
 
@@ -27,6 +26,15 @@ At least Jekyll and Github are planned to be supported, too.
 4. The tool either:
     - pushes the comment Markdown file directly to Git
     - creates a new branch, pushes the file into it, and opens a new MR
+
+
+## Usage
+
+Run Gitmentario using FastAPI CLI:
+
+```
+fastapi run src/gitmentario/main.py
+```
 
 
 ## Motivation
