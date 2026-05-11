@@ -3,12 +3,10 @@
 Gitmentario is a comment service for websites built with Static Site Generators (SSG).
 Comments are pushed as markdown ressources into your website’s Git.
 
-
 ## Support
 
 Gitmentario currently only supports [Hugo](https://gohugo.io) as SSG and Gitlab as software forge.
 At least Jekyll and Github are planned to be supported, too.
-
 
 ## Features
 
@@ -17,16 +15,14 @@ At least Jekyll and Github are planned to be supported, too.
 - Comment moderation
 - Less JavaScript needed
 
-
 ## How It Works
 
 1. A visitor writes a comment on your website as normal
 2. A small JavaScript snippet sends this data to Gitmentario
 3. Gitmentario creates a Markdown file from the comment
 4. The tool either:
-    - pushes the comment Markdown file directly to Git
-    - creates a new branch, pushes the file into it, and opens a new MR
-
+   - pushes the comment Markdown file directly to Git
+   - creates a new branch, pushes the file into it, and opens a new MR
 
 ## Usage
 
@@ -36,6 +32,8 @@ Run Gitmentario using FastAPI CLI:
 fastapi run src/gitmentario/main.py
 ```
 
+Or you can use e.g. Docker to run Gitmentario.
+Have a look into the `compose.yml` for a starting point.
 
 ## Motivation
 
@@ -46,7 +44,6 @@ My search for a solution like that ended unsuccessful and my commitment of switc
 A few years later, I came up with the idea again and found [Staticman](https://github.com/eduardoboucas/staticman) – that already existed for years!
 But sadly, it isn’t maintained anymore and written in JS.
 The latter detained me from taking over the maintenance.
-
 
 ## Built with Few Dependencies
 

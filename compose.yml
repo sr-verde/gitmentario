@@ -1,0 +1,13 @@
+services:
+  gitmentario:
+    build:
+      context: "."
+    environment:
+      CONTENT_DIR: "/app/content"
+      GIT_PUSH: false
+      FORGE__TYPE: "gitlab"
+      FORGE__AUTH_TOKEN: "glpat-<secret>"
+      FORGE__PROJECT_ID: 42
+      FORGE__BASE_URL: "https://example.com"
+    volumes:
+      - "../blog/content:/app/content"
