@@ -1,6 +1,7 @@
 import gitlab
 from fastapi import HTTPException
 
+from gitmentario.exceptions import BranchExistsError
 from gitmentario.forge import ForgeClient
 
 
@@ -122,4 +123,20 @@ class GitlabClient(ForgeClient):
             self.project.branches.create({"branch": branch_name, "ref": target_branch})
         except gitlab.exceptions.GitlabCreateError as exc:
             self.logger.error("Failed to create branch '%s': %s", branch_name, exc)
-            raise exc
+            if "already exists" in str(exc).lower():
+                raise BranchExistsError(branch_name) from exc
+            raise HTTPException(status_code=500, detail="Failed to create comment.") from exc
+
+        self._push_file_to_branch(branch_name, filename, file_content, commit_message)
+
+        try:
+            self.project.mergerequests.create(
+                {
+                    "source_branch": branch_name,
+                    "target_branch": target_branch,
+                    "title": mr_title,
+                }
+            )
+        except gitlab.exceptions.GitlabCreateError as exc:
+            self.logger.error("Failed to create MR for branch '%s': %s", branch_name, exc)
+            raise HTTPException(status_code=500, detail="Failed to create comment.") from exc
