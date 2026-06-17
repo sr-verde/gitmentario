@@ -55,7 +55,7 @@ Nested settings use `__` as the delimiter (e.g. `FORGE__AUTH_TOKEN`).
 
 | Variable            | Default      | Description                                                                                    |
 | ------------------- | ------------ | ---------------------------------------------------------------------------------------------- |
-| `CONTENT_DIR`       | _(required)_ | Path to the SSG content directory                                                              |
+| `CONTENT_DIR`       | _(required)_ | Repo-relative path to the SSG content directory (e.g. `content`)                              |
 | `COMMENTS_DIR`      | `comments`   | Subdirectory within `CONTENT_DIR` where comment files are stored                               |
 | `REPO_PATH`         | `.`          | Path to the local Git repository                                                               |
 | `GIT_PUSH`          | `true`       | `true`: push directly to the default branch; `false`: create a branch and open a merge request |

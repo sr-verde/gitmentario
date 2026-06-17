@@ -3,7 +3,7 @@ services:
     build:
       context: "."
     environment:
-      CONTENT_DIR: "/app/content"
+      CONTENT_DIR: "content"
       GIT_PUSH: false
       FORGE__TYPE: "gitlab"
       FORGE__AUTH_TOKEN: "glpat-<secret>"

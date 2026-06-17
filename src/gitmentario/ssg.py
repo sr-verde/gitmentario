@@ -16,27 +16,27 @@ def prepare_comment_markdown(
     using the current UTC timestamp and a sanitized author name, and formats
     the comment data (author, timestamp, message) into Markdown with a YAML
     frontmatter block. It does not write the file to disk, but instead returns
-    the absolute file path and the Markdown content as a string.
+    the repo-relative file path and the Markdown content as a string.
 
     Args:
         comment (Comment): The comment object containing at least `author`,
             `message`, `archetype`, and `page_id` attributes.
-        content_dir (str): Base content directory of the website.
+        content_dir (str): Repo-relative path to the content directory of the website.
         comments_dir (str): Subdirectory under the page where comments are stored.
 
     Returns:
         tuple[str, str]: A tuple containing:
-            - The absolute Markdown file path (str).
+            - The repo-relative Markdown file path (str).
             - The Markdown content with YAML frontmatter (str).
     """
-    abs_comments_dir = os.path.join(
+    comments_dir_path = os.path.join(
         content_dir, comment.archetype, comment.page_id, comments_dir
     )
-    os.makedirs(abs_comments_dir, exist_ok=True)
+    os.makedirs(comments_dir_path, exist_ok=True)
     timestamp = datetime.utcnow()
     name = safe_name(comment.author)
     file_path = os.path.join(
-        abs_comments_dir, f"{timestamp.strftime('%Y%m%d%H%M%S')}_{name}.md"
+        comments_dir_path, f"{timestamp.strftime('%Y%m%d%H%M%S')}_{name}.md"
     )
     frontmatter = yaml.safe_dump(
         {"author": comment.author, "date": timestamp.isoformat() + "Z"},
