@@ -1,8 +1,24 @@
 from functools import cache
+from pathlib import PurePosixPath
 from typing import Annotated, Literal
 
-from pydantic import AnyHttpUrl, PositiveInt, SecretStr, constr
+from pydantic import AfterValidator, AnyHttpUrl, PositiveInt, SecretStr, constr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _must_be_relative(path: PurePosixPath) -> PurePosixPath:
+    """Reject absolute paths and paths escaping the repository root."""
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError("must be a relative path without '..' segments")
+    return path
+
+
+RepoPath = Annotated[PurePosixPath, AfterValidator(_must_be_relative)]
+"""A path inside the repository, always with forward slashes.
+
+Forge APIs address files by repo-relative POSIX path, so this stays
+``PurePosixPath`` on every host platform and is never touched on disk.
+"""
 
 
 class ForgeConfig(BaseSettings):
@@ -26,9 +42,8 @@ class Settings(BaseSettings):
             https://docs.pydantic.dev/latest/concepts/pydantic_settings/
     """
 
-    repo_path: str = "."
-    comments_dir: str = "comments"
-    content_dir: str
+    comments_dir: RepoPath = PurePosixPath("comments")
+    content_dir: RepoPath
 
     git_push: bool = True  # True = direkt pushen, False = MR erstellen
 
