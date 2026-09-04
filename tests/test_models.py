@@ -45,3 +45,23 @@ def test_comment_path_stays_under_content_dir(page_id: str) -> None:
         make_comment(page_id), content_dir, PurePosixPath("comments")
     )
     assert PurePosixPath(file_path).is_relative_to(content_dir)
+
+
+@mark.parametrize("page_id", ["/absolute", "../../..", "a/../../b"])
+def test_escaping_path_rejected_even_if_model_bypassed(page_id: str) -> None:
+    """prepare_comment_markdown must not rely on Comment having validated page_id."""
+    comment = make_comment("placeholder")
+    object.__setattr__(comment, "page_id", page_id)
+    with raises(ValueError):
+        prepare_comment_markdown(
+            comment, PurePosixPath("content"), PurePosixPath("comments")
+        )
+
+
+def test_escaping_archetype_rejected_even_if_model_bypassed() -> None:
+    comment = make_comment("real-post")
+    object.__setattr__(comment, "archetype", "../..")
+    with raises(ValueError):
+        prepare_comment_markdown(
+            comment, PurePosixPath("content"), PurePosixPath("comments")
+        )
