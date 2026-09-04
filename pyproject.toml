@@ -24,9 +24,13 @@ build-backend = "poetry.core.masonry.api"
 dev = [
     "mypy>=1.18.2",
     "pytest>=8.4.2",
+    "pytest-cov>=7.1.0",
     "ruff>=0.13.2",
     "types-pyyaml>=6.0.12.20250915",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.mypy]
 plugins = ["pydantic.mypy"]
@@ -43,3 +47,4 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "E712", "PLR2004"]
+"e2e/*" = ["D", "E712", "PLR2004", "S101"]
