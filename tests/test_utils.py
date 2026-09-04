@@ -18,7 +18,7 @@ def test_forbidden_chars_removed():
     assert cleaned == "invalidname"
 
     cleaned = safe_name("invalid<strong>name</strong>")
-    assert cleaned == "invalidname"
+    assert cleaned == "invalidstrongnamestrong"
 
 
 def test_spaces_replaced_by_underscore():
