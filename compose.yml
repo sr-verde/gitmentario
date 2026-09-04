@@ -5,8 +5,12 @@ services:
     build:
       context: "."
     restart: "unless-stopped"
+    # Bound to loopback on purpose: Gitmentario enforces no rate or body limits
+    # of its own, so it must sit behind a reverse proxy that does. A proxy on the
+    # host reaches it here; a proxy container on this compose network reaches the
+    # service by name on port 80 instead.
     ports:
-      - "${GITMENTARIO_PORT:-8000}:80"
+      - "127.0.0.1:${GITMENTARIO_PORT:-8000}:80"
     environment:
       CONTENT_DIR: "${CONTENT_DIR:-content}"
       COMMENTS_DIR: "${COMMENTS_DIR:-comments}"

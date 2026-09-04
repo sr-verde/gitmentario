@@ -54,6 +54,10 @@ Then start it:
 docker compose up
 ```
 
+The published port is bound to `127.0.0.1`, so Gitmentario is not reachable from outside the host.
+This is deliberate: Gitmentario enforces neither rate limits nor a request body limit itself, so it must run behind a reverse proxy that does — see [Security](#security).
+Put your proxy in front of `127.0.0.1:8000`, or, if the proxy runs as a container on the same Docker network, let it reach the `gitmentario` service by name on port 80.
+
 ## Configuration
 
 All settings are read from environment variables or a `.env` file in the working directory.
@@ -102,6 +106,48 @@ Independently of scopes, the token’s role must allow the write:
 
 - `GIT_PUSH=false` (recommended): _Developer_ is enough – the branch is new and unprotected, and the merge request is reviewed by you.
 - `GIT_PUSH=true`: the token commits straight to the default branch. If that branch is protected (default), the role must be one that is allowed to push to it (default: Maintainer).
+
+## Security
+
+Gitmentario accepts writes to your repository from anonymous visitors.
+Its defaults are chosen to keep that safe, but a few things are the operator’s responsibility.
+
+### Use a reverse proxy
+
+Gitmentario enforces neither rate limiting nor a request body limit.
+That is intentional.
+Both belong in the proxy in front of it, which should reject abusive requests before they occupy a worker.
+Our example `compose.yml` binds the published port to `127.0.0.1` so the service is not reachable without one.
+
+- Without a rate limit, a script can flood your repository with commits, branches and merge requests.
+- Without a body limit, the whole JSON payload is parsed into memory, so a large request is a cheap denial of service.
+
+| Proxy   | Body limit                                          | Rate limit                      |
+| ------- | --------------------------------------------------- | ------------------------------- |
+| nginx   | `client_max_body_size 64k;` (defaults to `1m`)      | `limit_req_zone` + `limit_req`  |
+| Caddy   | `request_body { max_size 64KB }` (no default limit) | `rate_limit` (community module) |
+| Traefik | `buffering.maxRequestBodyBytes` (no default limit)  | `rateLimit` middleware          |
+
+### Use Merge Requests
+
+With `GIT_PUSH=true`, every accepted comment is committed directly to your default branch and appears on your live site without review.
+Allowing anonymous input to reach your published site without review can turn an ordinary bug into a security problem.
+With `GIT_PUSH=false`, a merge request is opened instead, and so a human approves each comment.
+
+### Comments are unauthenticated
+
+There is no known identity behind a comment:
+`author` is whatever the submitter typed, so anyone can post under any name, including yours.
+The current version of Gitmentario doesn’t support blocklists.
+
+### Rendering is your SSG’s job
+
+The comment body is written to the Markdown file verbatim, and the author name is stored in the YAML frontmatter.
+Gitmentario does not attempt to sanitize either, because what is dangerous depends entirely on how your site renders it. For Hugo:
+
+- Keep Goldmark’s `unsafe` setting at `false` (the default). With `unsafe = true`, raw HTML in a comment is rendered as-is, which is stored cross-site scripting on your own domain.
+- Do not pass `author` through `safeHTML` in your templates!
+- Consider that Markdown alone still allows links and remote images in comments.
 
 ## API
 
