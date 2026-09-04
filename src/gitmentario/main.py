@@ -2,6 +2,7 @@ from logging import Formatter, StreamHandler, getLogger
 from sys import stdout
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .forge.base import ForgeClient
 from .forge.gitlab import GitlabClient
@@ -27,6 +28,19 @@ if settings.forge.type == "gitlab":
     forge_client = GitlabClient(settings.forge, settings.target_branch, logger)
 
 app = FastAPI()
+
+if settings.allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.allowed_origins,
+        allow_methods=["POST"],
+        allow_headers=["Content-Type"],
+    )
+else:
+    logger.warning(
+        "ALLOWED_ORIGINS is empty; browsers will refuse to submit comments "
+        "cross-origin. Set it to the origin of your website."
+    )
 
 
 @app.post("/comment")

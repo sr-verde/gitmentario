@@ -2,10 +2,40 @@ from functools import cache
 from pathlib import PurePosixPath
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, AnyHttpUrl, PositiveInt, SecretStr, constr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import (
+    AfterValidator,
+    AnyHttpUrl,
+    BeforeValidator,
+    PositiveInt,
+    SecretStr,
+    constr,
+)
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from gitmentario.utils import check_repo_relative
+
+
+def _split_origins(value: object) -> object:
+    """Accept a comma-separated list of origins, as written in a ``.env`` file."""
+    if isinstance(value, str):
+        return tuple(
+            origin.strip().rstrip("/") for origin in value.split(",") if origin.strip()
+        )
+    return value
+
+
+Origins = Annotated[tuple[str, ...], NoDecode, BeforeValidator(_split_origins)]
+"""Browser origins permitted to submit comments.
+
+A tuple rather than a list or set: ``CORSMiddleware`` declares ``Sequence[str]``
+(so a set does not type-check), and ``get_settings`` is cached, so an immutable
+value avoids sharing mutable state process-wide.
+
+Kept as plain strings rather than URLs: a browser sends ``Origin`` without a
+trailing slash, which a parsed URL type would add back and so never match.
+``NoDecode`` opts out of the JSON decoding pydantic-settings applies to
+collection fields, so ``.env`` can use a readable comma-separated value.
+"""
 
 RepoPath = Annotated[PurePosixPath, AfterValidator(check_repo_relative)]
 """A path inside the repository, always with forward slashes.
@@ -44,6 +74,8 @@ class Settings(BaseSettings):
     forge: ForgeConfig
 
     target_branch: str = "main"
+
+    allowed_origins: Origins = ()
     log_level: Annotated[
         Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         constr(to_upper=True, strip_whitespace=True),

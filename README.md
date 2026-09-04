@@ -69,6 +69,7 @@ Nested settings use `__` as the delimiter (e.g. `FORGE__AUTH_TOKEN`).
 | `COMMENTS_DIR`      | `comments`   | Subdirectory within `CONTENT_DIR` where comment files are stored                               |
 | `GIT_PUSH`          | `true`       | `true`: push directly to the default branch; `false`: create a branch and open a merge request |
 | `TARGET_BRANCH`     | `main`       | Branch used as base when creating merge requests                                               |
+| `ALLOWED_ORIGINS`   | _(empty)_    | Comma-separated browser origins allowed to submit comments (e.g. `https://example.com`)        |
 | `LOG_LEVEL`         | `INFO`       | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)                                    |
 | `FORGE__TYPE`       | _(required)_ | Forge type — currently only `gitlab`                                                           |
 | `FORGE__BASE_URL`   | _(required)_ | Base URL of the GitLab instance                                                                |
