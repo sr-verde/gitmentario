@@ -150,6 +150,12 @@ Gitmentario does not attempt to sanitize either, because what is dangerous depen
 - Do not pass `author` through `safeHTML` in your templates!
 - Consider that Markdown alone still allows links and remote images in comments.
 
+The one exception is Hugo shortcodes, which Gitmentario neutralizes on write.
+Hugo expands shortcodes in a content file before Markdown is rendered, and does so even inside fenced code blocks, so `unsafe = false` is no protection against them.
+An unknown shortcode can cause the entire site build to fail, so a single comment could prevent your site from being built.
+Well-formed shortcodes are therefore rewritten to Hugo’s literal form (`{{</* … */>}}`), and unpaired openers, which have no literal form, are broken with a character reference.
+Either way the visitor’s text still reads as they wrote it.
+
 ## API
 
 ### `POST /comment`

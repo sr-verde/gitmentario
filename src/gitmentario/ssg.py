@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from pathlib import PurePosixPath
 
@@ -5,6 +6,29 @@ import yaml
 
 from .models import Comment
 from .utils import FALLBACK_NAME, check_repo_relative, safe_name
+
+_ANGLE_SHORTCODE = re.compile(r"\{\{<(?!/\*)(.*?)(?<!\*/)>\}\}", re.DOTALL)
+_PERCENT_SHORTCODE = re.compile(r"\{\{%(?!/\*)(.*?)(?<!\*/)%\}\}", re.DOTALL)
+_UNPAIRED_OPENER = re.compile(r"\{\{(?=[<%](?!/\*))")
+
+
+def escape_shortcodes(text: str) -> str:
+    """Render Hugo shortcodes in ``text`` inert without changing what a reader sees.
+
+    Well-formed shortcodes are rewritten to Hugo’s documented literal form
+    (``{{</* ... */>}}``), which displays correctly in prose and in code blocks.
+    Unpaired openers, which have no such form, are broken with a character
+    reference instead.
+
+    Args:
+        text (str): Untrusted comment body.
+
+    Returns:
+        str: The body with every shortcode delimiter neutralised.
+    """
+    text = _ANGLE_SHORTCODE.sub(r"{{</*\1*/>}}", text)
+    text = _PERCENT_SHORTCODE.sub(r"{{%/*\1*/%}}", text)
+    return _UNPAIRED_OPENER.sub("&#123;&#123;", text)
 
 
 def prepare_comment_markdown(
@@ -47,5 +71,5 @@ def prepare_comment_markdown(
         default_flow_style=False,
         allow_unicode=True,
     )
-    md_content = f"---\n{frontmatter}---\n\n{comment.message}\n"
+    md_content = f"---\n{frontmatter}---\n\n{escape_shortcodes(comment.message)}\n"
     return (str(file_path), md_content)
