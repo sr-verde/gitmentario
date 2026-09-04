@@ -1,81 +1,134 @@
-from pathlib import PurePosixPath
-
 from pydantic import ValidationError
 from pytest import mark, raises
 
 from gitmentario.models import Comment
-from gitmentario.ssg import prepare_comment_markdown
-from gitmentario.utils import FALLBACK_NAME
+
+AUTHOR_MAX = 64
+MESSAGE_MAX = 1024
+ARCHETYPE_MAX = 32
+PAGE_ID_MAX = 1024
+
+REQUIRED_FIELDS = {"author": "Test", "message": "hello", "page_id": "real-post"}
 
 
-def make_comment(page_id: str) -> Comment:
-    return Comment(author="Test", message="hello", page_id=page_id)
+def make_comment(**overrides: str) -> Comment:
+    """Build a valid comment, so each test varies only the field it is about."""
+    return Comment(**{**REQUIRED_FIELDS, **overrides})
+
+
+def test_defaults_applied() -> None:
+    assert make_comment().archetype == "default"
+
+
+@mark.parametrize("field", sorted(REQUIRED_FIELDS))
+def test_required_fields_must_be_given(field: str) -> None:
+    fields = dict(REQUIRED_FIELDS)
+    del fields[field]
+    with raises(ValidationError):
+        Comment(**fields)
 
 
 @mark.parametrize(
-    "page_id", ["real-post", "a/b/c", "2026/09/my-post", "post.with.dots"]
+    ("field", "value", "expected"),
+    [
+        ("author", "  Test  ", "Test"),
+        ("message", "  hello  ", "hello"),
+        ("page_id", "  real-post  ", "real-post"),
+        ("archetype", "  posts  ", "posts"),
+    ],
+)
+def test_surrounding_whitespace_is_stripped(
+    field: str, value: str, expected: str
+) -> None:
+    assert getattr(make_comment(**{field: value}), field) == expected
+
+
+@mark.parametrize(
+    ("field", "limit"),
+    [
+        ("author", AUTHOR_MAX),
+        ("message", MESSAGE_MAX),
+        ("archetype", ARCHETYPE_MAX),
+        ("page_id", PAGE_ID_MAX),
+    ],
+)
+def test_field_accepts_its_maximum_length(field: str, limit: int) -> None:
+    assert len(getattr(make_comment(**{field: "a" * limit}), field)) == limit
+
+
+@mark.parametrize(
+    ("field", "limit"),
+    [
+        ("author", AUTHOR_MAX),
+        ("message", MESSAGE_MAX),
+        ("archetype", ARCHETYPE_MAX),
+        ("page_id", PAGE_ID_MAX),
+    ],
+)
+def test_field_rejects_one_over_its_maximum(field: str, limit: int) -> None:
+    with raises(ValidationError):
+        make_comment(**{field: "a" * (limit + 1)})
+
+
+@mark.parametrize("field", ["author", "message", "archetype", "page_id"])
+@mark.parametrize("value", ["", "   "])
+def test_field_rejects_empty_value(field: str, value: str) -> None:
+    with raises(ValidationError):
+        make_comment(**{field: value})
+
+
+@mark.parametrize("archetype", ["posts", "default", "Notes", "日本語"])
+def test_alphabetic_archetypes_accepted(archetype: str) -> None:
+    assert make_comment(archetype=archetype).archetype == archetype
+
+
+@mark.parametrize("archetype", ["posts2", "with space", "with-dash", "a/b", "a.b"])
+def test_non_alphabetic_archetypes_rejected(archetype: str) -> None:
+    with raises(ValidationError):
+        make_comment(archetype=archetype)
+
+
+@mark.parametrize(
+    "page_id", ["real-post", "a/b/c", "2026/09/my-post", "post.with.dots", "a_b"]
 )
 def test_valid_page_ids_accepted(page_id: str) -> None:
-    assert make_comment(page_id).page_id == page_id
+    assert make_comment(page_id=page_id).page_id == page_id
+
+
+@mark.parametrize("page_id", ["café", "日本語", "naïve"])
+def test_non_ascii_page_ids_rejected(page_id: str) -> None:
+    with raises(ValidationError):
+        make_comment(page_id=page_id)
 
 
 @mark.parametrize(
     "page_id",
     [
+        # An absolute path discards the content directory entirely when joined.
         "/absolute",
         "/",
         "/content",
+        # Traversal out of the content directory.
         "../../..",
         "a/../../b",
         "..",
+        # Segments that normalize unpredictably.
         "a//b",
         "a/./b",
         "trailing/",
+        # Control characters would also forge log lines.
         "with\nnewline",
         "nul\x00byte",
         "tab\there",
+        "carriage\rreturn",
     ],
 )
 def test_unsafe_page_ids_rejected(page_id: str) -> None:
     with raises(ValidationError):
-        make_comment(page_id)
+        make_comment(page_id=page_id)
 
 
-@mark.parametrize("page_id", ["real-post", "a/b/c", "2026/09/my-post"])
-def test_comment_path_stays_under_content_dir(page_id: str) -> None:
-    content_dir = PurePosixPath("content")
-    file_path, _ = prepare_comment_markdown(
-        make_comment(page_id), content_dir, PurePosixPath("comments")
-    )
-    assert PurePosixPath(file_path).is_relative_to(content_dir)
-
-
-@mark.parametrize("page_id", ["/absolute", "../../..", "a/../../b"])
-def test_escaping_path_rejected_even_if_model_bypassed(page_id: str) -> None:
-    """prepare_comment_markdown must not rely on Comment having validated page_id."""
-    comment = make_comment("placeholder")
-    object.__setattr__(comment, "page_id", page_id)
-    with raises(ValueError):
-        prepare_comment_markdown(
-            comment, PurePosixPath("content"), PurePosixPath("comments")
-        )
-
-
-def test_escaping_archetype_rejected_even_if_model_bypassed() -> None:
-    comment = make_comment("real-post")
-    object.__setattr__(comment, "archetype", "../..")
-    with raises(ValueError):
-        prepare_comment_markdown(
-            comment, PurePosixPath("content"), PurePosixPath("comments")
-        )
-
-
-@mark.parametrize("author", ["日本語", "Дмитрий", "...", "  ' "])
-def test_non_latin_author_does_not_raise(author: str) -> None:
-    comment = Comment(author=author, message="hello", page_id="real-post")
-    file_path, md_content = prepare_comment_markdown(
-        comment, PurePosixPath("content"), PurePosixPath("comments")
-    )
-    assert file_path.endswith(f"_{FALLBACK_NAME}.md")
-    # The real name is still recorded verbatim in the frontmatter.
-    assert author.strip() in md_content
+def test_message_may_contain_markup_and_newlines() -> None:
+    """A comment body is data; what is safe to render is the SSG’s concern."""
+    message = "Line one\n\n<em>html</em> & `code`"
+    assert make_comment(message=message).message == message

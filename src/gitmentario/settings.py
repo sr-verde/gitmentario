@@ -8,7 +8,7 @@ from pydantic import (
     BeforeValidator,
     PositiveInt,
     SecretStr,
-    constr,
+    StringConstraints,
 )
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     allowed_origins: Origins = ()
     log_level: Annotated[
         Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        constr(to_upper=True, strip_whitespace=True),
+        StringConstraints(to_upper=True, strip_whitespace=True),
     ] = "INFO"
 
     # Model config: https://docs.pydantic.dev/2.6/api/config/#pydantic.config.ConfigDict

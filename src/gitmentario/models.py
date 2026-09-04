@@ -1,7 +1,7 @@
 from pathlib import PurePosixPath
 from typing import Annotated
 
-from pydantic import BaseModel, Field, constr, field_validator
+from pydantic import BaseModel, Field, StringConstraints, field_validator
 
 from .utils import check_repo_relative
 
@@ -15,25 +15,25 @@ class Comment(BaseModel):
     """
 
     author: Annotated[
-        str, constr(strip_whitespace=True, min_length=1, max_length=64)
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)
     ] = Field(
         ...,
         description="Name of the commenter",
     )
     message: Annotated[
-        str, constr(strip_whitespace=True, min_length=1, max_length=1024)
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1024)
     ] = Field(
         ...,
         description="Comment message content",
     )
     archetype: Annotated[
-        str, constr(strip_whitespace=True, min_length=1, max_length=32)
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=32)
     ] = Field(
         default="default",
         description="User archetype, classifying user category or role",
     )
     page_id: Annotated[
-        str, constr(strip_whitespace=True, min_length=1, max_length=1024)
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1024)
     ] = Field(
         ...,
         description="Identifier of the page related to the comment",
