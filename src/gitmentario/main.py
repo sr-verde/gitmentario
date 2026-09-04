@@ -24,7 +24,7 @@ logger.info("API is starting up.")
 
 forge_client: ForgeClient
 if settings.forge.type == "gitlab":
-    forge_client = GitlabClient(settings.forge, logger)
+    forge_client = GitlabClient(settings.forge, settings.target_branch, logger)
 
 app = FastAPI()
 

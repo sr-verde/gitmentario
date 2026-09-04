@@ -3,6 +3,7 @@ from fastapi import HTTPException
 
 from gitmentario.exceptions import BranchExistsError
 from gitmentario.forge import ForgeClient
+from gitmentario.settings import ForgeConfig
 
 
 class GitlabClient(ForgeClient):
@@ -13,15 +14,17 @@ class GitlabClient(ForgeClient):
     Attributes:
         gitlab_instance (gitlab.Gitlab): GitLab API client.
         project (gitlab.v4.objects.Project): Project object.
-        settings (object): Settings/configuration.
+        settings (ForgeConfig): Forge connection settings.
+        target_branch (str): Branch used as base when creating merge requests.
         logger (logging.Logger): Logger for diagnostics.
     """
 
-    def __init__(self, settings, logger):
+    def __init__(self, settings: ForgeConfig, target_branch: str, logger):
         """Initialize the GitLab client for a specific repository.
 
         Args:
-            settings (object): Config containing gitlab_url, gitlab_token, gitlab_project_id, target_branch.
+            settings (ForgeConfig): Config containing base_url, auth_token and project_id.
+            target_branch (str): Branch used as base when creating merge requests.
             logger (logging.Logger): Log handler.
         """
         self.gitlab_instance = gitlab.Gitlab(
@@ -29,6 +32,7 @@ class GitlabClient(ForgeClient):
         )
         self.project = self.gitlab_instance.projects.get(settings.project_id)
         self.settings = settings
+        self.target_branch = target_branch
         self.logger = logger
 
     def get_default_branch(self) -> str:
@@ -45,7 +49,7 @@ class GitlabClient(ForgeClient):
         Returns:
             str: Target branch name.
         """
-        return self.settings.target_branch
+        return self.target_branch
 
     def check_file_exists(self, branch: str, filename: str) -> None:
         """Check if a file exists in the given branch.
