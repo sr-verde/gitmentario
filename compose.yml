@@ -1,13 +1,19 @@
+# Every value below can be overridden in a `.env` file next to this file.
+# Anything not set there falls back to the default given here.
 services:
   gitmentario:
     build:
       context: "."
+    restart: "unless-stopped"
+    ports:
+      - "${GITMENTARIO_PORT:-8000}:80"
     environment:
-      CONTENT_DIR: "content"
-      GIT_PUSH: false
-      FORGE__TYPE: "gitlab"
-      FORGE__AUTH_TOKEN: "glpat-<secret>"
-      FORGE__PROJECT_ID: 42
-      FORGE__BASE_URL: "https://example.com"
-    volumes:
-      - "../blog/content:/app/content"
+      CONTENT_DIR: "${CONTENT_DIR:-content}"
+      COMMENTS_DIR: "${COMMENTS_DIR:-comments}"
+      GIT_PUSH: "${GIT_PUSH:-false}"
+      TARGET_BRANCH: "${TARGET_BRANCH:-main}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      FORGE__TYPE: "${FORGE__TYPE:-gitlab}"
+      FORGE__BASE_URL: "${FORGE__BASE_URL:?set FORGE__BASE_URL in your .env}"
+      FORGE__PROJECT_ID: "${FORGE__PROJECT_ID:?set FORGE__PROJECT_ID in your .env}"
+      FORGE__AUTH_TOKEN: "${FORGE__AUTH_TOKEN:?set FORGE__AUTH_TOKEN in your .env}"

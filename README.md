@@ -40,7 +40,13 @@ fastapi run src/gitmentario/main.py
 ### Run with Docker Compose
 
 You can use e.g. Docker to run Gitmentario.
-Copy `compose.yml` and adjust the environment variables to your setup.
+Copy `compose.yml` and `.env.example` to your setup, rename the latter to `.env` and fill in at least the required values:
+
+```bash
+cp .env.example .env
+```
+
+Every variable in `.env` overrides the corresponding default baked into `compose.yml`; anything you leave out falls back to that default.
 
 Then start it:
 
@@ -55,9 +61,8 @@ Nested settings use `__` as the delimiter (e.g. `FORGE__AUTH_TOKEN`).
 
 | Variable            | Default      | Description                                                                                    |
 | ------------------- | ------------ | ---------------------------------------------------------------------------------------------- |
-| `CONTENT_DIR`       | _(required)_ | Repo-relative path to the SSG content directory (e.g. `content`)                              |
+| `CONTENT_DIR`       | _(required)_ | Repo-relative path to the SSG content directory (e.g. `content`)                               |
 | `COMMENTS_DIR`      | `comments`   | Subdirectory within `CONTENT_DIR` where comment files are stored                               |
-| `REPO_PATH`         | `.`          | Path to the local Git repository                                                               |
 | `GIT_PUSH`          | `true`       | `true`: push directly to the default branch; `false`: create a branch and open a merge request |
 | `TARGET_BRANCH`     | `main`       | Branch used as base when creating merge requests                                               |
 | `LOG_LEVEL`         | `INFO`       | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`)                                    |
