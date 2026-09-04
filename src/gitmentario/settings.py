@@ -5,15 +5,9 @@ from typing import Annotated, Literal
 from pydantic import AfterValidator, AnyHttpUrl, PositiveInt, SecretStr, constr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from gitmentario.utils import check_repo_relative
 
-def _must_be_relative(path: PurePosixPath) -> PurePosixPath:
-    """Reject absolute paths and paths escaping the repository root."""
-    if path.is_absolute() or ".." in path.parts:
-        raise ValueError("must be a relative path without '..' segments")
-    return path
-
-
-RepoPath = Annotated[PurePosixPath, AfterValidator(_must_be_relative)]
+RepoPath = Annotated[PurePosixPath, AfterValidator(check_repo_relative)]
 """A path inside the repository, always with forward slashes.
 
 Forge APIs address files by repo-relative POSIX path, so this stays

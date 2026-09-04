@@ -1,5 +1,6 @@
 import string
 import unicodedata
+from pathlib import PurePosixPath
 
 
 def safe_name(name: str, whitespace_replacement: str = "_") -> str:
@@ -35,3 +36,24 @@ def safe_name(name: str, whitespace_replacement: str = "_") -> str:
         raise ValueError("Invalid name")
 
     return cleaned
+
+
+def check_repo_relative(path: PurePosixPath) -> PurePosixPath:
+    """Reject absolute paths and paths escaping the repository root.
+
+    Forge APIs address files by repo-relative path, so a path that is absolute
+    or contains ``..`` segments would resolve outside the directory it is meant
+    to be confined to.
+
+    Args:
+        path (PurePosixPath): The path to check.
+
+    Returns:
+        PurePosixPath: The unchanged path.
+
+    Raises:
+        ValueError: If the path is absolute or contains a ``..`` segment.
+    """
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError("Must be a relative path without '..' segments")
+    return path

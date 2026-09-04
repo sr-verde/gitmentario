@@ -1,6 +1,9 @@
+from pathlib import PurePosixPath
 from typing import Annotated
 
 from pydantic import BaseModel, Field, constr, field_validator
+
+from .utils import check_repo_relative
 
 
 class Comment(BaseModel):
@@ -50,4 +53,17 @@ class Comment(BaseModel):
         """Validate that the page_id contains only ASCII characters."""
         if not value.isascii():
             raise ValueError("Page ID must contain only ASCII characters")
+        return value
+
+    @field_validator("page_id")
+    @classmethod
+    def page_id_must_be_safe_path(cls, value: str) -> str:
+        """Validate that page_id is a safe repo-relative path fragment."""
+        if not value.isprintable():
+            raise ValueError("Page ID must not contain any control characters")
+        if any(segment in ("", ".", "..") for segment in value.split("/")):
+            raise ValueError(
+                "Page ID must be a relative path without empty, '.' or '..' segments"
+            )
+        check_repo_relative(PurePosixPath(value))
         return value
