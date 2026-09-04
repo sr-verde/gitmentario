@@ -71,6 +71,38 @@ Nested settings use `__` as the delimiter (e.g. `FORGE__AUTH_TOKEN`).
 | `FORGE__PROJECT_ID` | _(required)_ | Numeric GitLab project ID                                                                      |
 | `FORGE__AUTH_TOKEN` | _(required)_ | GitLab personal access token                                                                   |
 
+### GitLab Token Permissions
+
+`FORGE__AUTH_TOKEN` may be a personal, group, or project access token.
+Gitmentario only ever touches the one project you configured, so a _project access token_ or a _fine-grained token_ restricted to your project is the tightest fit.
+
+#### Fine-grained tokens
+
+[Fine-grained personal access tokens](https://docs.gitlab.com/auth/tokens/fine_grained_access_tokens/) let you grant exactly the actions Gitmentario performs, scoped to a single project:
+
+| Resource        | Action   | Needed for                                             | Endpoint                                         |
+| --------------- | -------- | ------------------------------------------------------ | ------------------------------------------------ |
+| `Project`       | `Read`   | Looking up the repository's default branch             | `GET /projects/:id`                              |
+| `Repository`    | `Read`   | Checking whether a comment file already exists (`409`) | `GET /projects/:id/repository/files/:file_path`  |
+| `Repository`    | `Create` | Writing the comment Markdown file                      | `POST /projects/:id/repository/files/:file_path` |
+| `Branch`        | `Create` | Only when `GIT_PUSH=false`                             | `POST /projects/:id/repository/branches`         |
+| `Merge Request` | `Create` | Only when `GIT_PUSH=false`                             | `POST /projects/:id/merge_requests`              |
+
+With `GIT_PUSH=true` the last two rows can be dropped.
+
+#### Legacy scoped tokens
+
+On older GitLab versions the only scope that covers these endpoints is _`api`_.
+`write_repository` is _not_ sufficient:
+it grants Git-over-HTTP access, but not the REST Repository Files API that Gitmentario uses.
+
+#### Role
+
+Independently of scopes, the token’s role must allow the write:
+
+- `GIT_PUSH=false` (recommended): _Developer_ is enough – the branch is new and unprotected, and the merge request is reviewed by you.
+- `GIT_PUSH=true`: the token commits straight to the default branch. If that branch is protected (default), the role must be one that is allowed to push to it (default: Maintainer).
+
 ## API
 
 ### `POST /comment`
