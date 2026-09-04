@@ -1,56 +1,77 @@
-from pytest import raises
+from pathlib import PurePosixPath
 
-from gitmentario.utils import FALLBACK_NAME, safe_name
+from pytest import mark, raises
 
-
-def test_basic_valid_name():
-    assert safe_name("valid_name-123") == "valid_name-123"
+from gitmentario.utils import FALLBACK_NAME, check_repo_relative, safe_name
 
 
-def test_unicode_normalization():
-    # é becomes e, ä becomes a
-    assert safe_name("café_ä") == "cafe_a"
+@mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("valid_name-123", "valid_name-123"),
+        # Unicode is normalized to ASCII: é becomes e, ä becomes a
+        ("café_ä", "cafe_a"),
+        ("日本語 Bob", "Bob"),
+        # Only the delimiters are dropped, so a tag body survives as text
+        ('inva<lid>:na"me/\\|?*', "invalidname"),
+        ("invalid<strong>name</strong>", "invalidstrongnamestrong"),
+        ("this is a test", "this_is_a_test"),
+        ("filename.   ", "filename"),
+        ("  .filename", "filename"),
+        (
+            "-_.()ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+            "-_.()ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+        ),
+    ],
+)
+def test_safe_name_cleans_input(raw: str, expected: str) -> None:
+    assert safe_name(raw) == expected
 
 
-def test_forbidden_chars_removed():
-    # Characters like < > : " / \ | ? * are removed
-    cleaned = safe_name('inva<lid>:na"me/\\|?*')
-    assert cleaned == "invalidname"
-
-    cleaned = safe_name("invalid<strong>name</strong>")
-    assert cleaned == "invalidstrongnamestrong"
-
-
-def test_spaces_replaced_by_underscore():
-    assert safe_name("this is a test") == "this_is_a_test"
-    assert safe_name("this is a test", "-") == "this-is-a-test"
+@mark.parametrize(
+    ("replacement", "expected"),
+    [("_", "this_is_a_test"), ("-", "this-is-a-test"), ("", "thisisatest")],
+)
+def test_safe_name_replaces_whitespace(replacement: str, expected: str) -> None:
+    assert safe_name("this is a test", replacement) == expected
 
 
-def test_trailing_dots_and_spaces_stripped():
-    assert safe_name("filename.   ") == "filename"
-    assert safe_name("  .filename") == "filename"
-
-
-def test_empty_after_cleanup_raises():
+@mark.parametrize("raw", ["<<::>>", "...", "日本語", "Дмитрий", "  ' "])
+def test_safe_name_raises_when_nothing_survives(raw: str) -> None:
+    """Without a fallback the caller decides what an unusable name means."""
     with raises(ValueError):
-        safe_name("<<::>>")
+        safe_name(raw)
 
 
-def test_allowable_chars_left_intact():
-    allowed = "-_.()ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-    assert safe_name(allowed) == allowed
+@mark.parametrize("raw", ["<<::>>", "...", "日本語", "Дмитрий", "  ' "])
+def test_safe_name_returns_fallback_when_nothing_survives(raw: str) -> None:
+    """A name in a non-Latin script normalizes away, and must not fail a request."""
+    assert safe_name(raw, fallback=FALLBACK_NAME) == FALLBACK_NAME
 
 
-def test_fallback_used_when_nothing_survives_cleanup():
-    assert safe_name("<<::>>", fallback=FALLBACK_NAME) == FALLBACK_NAME
-    assert safe_name("...", fallback=FALLBACK_NAME) == FALLBACK_NAME
+@mark.parametrize("raw", ["Bob", "日本語 Bob", "b"])
+def test_safe_name_ignores_fallback_when_input_survives(raw: str) -> None:
+    assert safe_name(raw, fallback=FALLBACK_NAME) != FALLBACK_NAME
 
 
-def test_non_latin_names_fall_back():
-    assert safe_name("日本語", fallback=FALLBACK_NAME) == FALLBACK_NAME
-    assert safe_name("Дмитрий", fallback=FALLBACK_NAME) == FALLBACK_NAME
+@mark.parametrize("path", ["content", "a/b/c", "content/comments", "a.b/c-d", "."])
+def test_check_repo_relative_accepts_relative_paths(path: str) -> None:
+    candidate = PurePosixPath(path)
+    assert check_repo_relative(candidate) is candidate
 
 
-def test_fallback_unused_when_name_survives():
-    assert safe_name("Bob", fallback=FALLBACK_NAME) == "Bob"
-    assert safe_name("日本語 Bob", fallback=FALLBACK_NAME) == "Bob"
+@mark.parametrize(
+    "path",
+    [
+        "/absolute",
+        "/",
+        "/etc/passwd",
+        "..",
+        "../escape",
+        "content/../../escape",
+        "content/..",
+    ],
+)
+def test_check_repo_relative_rejects_paths_leaving_the_repository(path: str) -> None:
+    with raises(ValueError):
+        check_repo_relative(PurePosixPath(path))
