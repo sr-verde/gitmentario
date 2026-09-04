@@ -5,13 +5,16 @@ from pytest import mark, raises
 
 from gitmentario.models import Comment
 from gitmentario.ssg import prepare_comment_markdown
+from gitmentario.utils import FALLBACK_NAME
 
 
 def make_comment(page_id: str) -> Comment:
     return Comment(author="Test", message="hello", page_id=page_id)
 
 
-@mark.parametrize("page_id", ["real-post", "a/b/c", "2026/09/my-post", "post.with.dots"])
+@mark.parametrize(
+    "page_id", ["real-post", "a/b/c", "2026/09/my-post", "post.with.dots"]
+)
 def test_valid_page_ids_accepted(page_id: str) -> None:
     assert make_comment(page_id).page_id == page_id
 
@@ -65,3 +68,14 @@ def test_escaping_archetype_rejected_even_if_model_bypassed() -> None:
         prepare_comment_markdown(
             comment, PurePosixPath("content"), PurePosixPath("comments")
         )
+
+
+@mark.parametrize("author", ["日本語", "Дмитрий", "...", "  ' "])
+def test_non_latin_author_does_not_raise(author: str) -> None:
+    comment = Comment(author=author, message="hello", page_id="real-post")
+    file_path, md_content = prepare_comment_markdown(
+        comment, PurePosixPath("content"), PurePosixPath("comments")
+    )
+    assert file_path.endswith(f"_{FALLBACK_NAME}.md")
+    # The real name is still recorded verbatim in the frontmatter.
+    assert author.strip() in md_content

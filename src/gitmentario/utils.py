@@ -2,8 +2,12 @@ import string
 import unicodedata
 from pathlib import PurePosixPath
 
+FALLBACK_NAME = "commenter"
 
-def safe_name(name: str, whitespace_replacement: str = "_") -> str:
+
+def safe_name(
+    name: str, whitespace_replacement: str = "_", fallback: str | None = None
+) -> str:
     """Convert a string into a safe filename-friendly format.
 
     This function normalizes a given string by removing or replacing
@@ -14,12 +18,15 @@ def safe_name(name: str, whitespace_replacement: str = "_") -> str:
     Args:
         name (str): The input string to sanitize.
         whitespace_replacement (str): Whitespaces will be replaced with this string.
+        fallback (str | None): Returned when nothing survives cleaning. When
+            ``None``, an empty result raises instead.
 
     Returns:
         str: A cleaned string suitable for use as a filename.
 
     Raises:
-        ValueError: If the resulting string is empty after cleaning.
+        ValueError: If the resulting string is empty after cleaning and no
+            ``fallback`` was given.
     """
     # Normalize unicode characters to ASCII
     name = unicodedata.normalize("NFKD", name).encode("ASCII", "ignore").decode("ASCII")
@@ -33,7 +40,9 @@ def safe_name(name: str, whitespace_replacement: str = "_") -> str:
     cleaned = "".join(c for c in name if c in valid_chars)
 
     if not cleaned:
-        raise ValueError("Invalid name")
+        if fallback is None:
+            raise ValueError("Invalid name")
+        return fallback
 
     return cleaned
 

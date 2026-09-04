@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import date
 
 from gitmentario.exceptions import BranchExistsError
-from gitmentario.utils import safe_name
+from gitmentario.utils import FALLBACK_NAME, safe_name
 
 
 def create_mr_title(name: str) -> str:
@@ -42,7 +42,7 @@ def create_branch_name(name: str, suffix: str | int = None) -> str:
     if suffix:
         name = f"{name}-{suffix}"
     date_str = date.today().strftime("%Y-%m-%d")
-    return f"{safe_name(name, '-')}-{date_str}"
+    return f"{safe_name(name, '-', fallback=FALLBACK_NAME)}-{date_str}"
 
 
 class ForgeClient(ABC):

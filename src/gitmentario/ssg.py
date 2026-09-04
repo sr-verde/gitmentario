@@ -4,7 +4,7 @@ from pathlib import PurePosixPath
 import yaml
 
 from .models import Comment
-from .utils import check_repo_relative, safe_name
+from .utils import FALLBACK_NAME, check_repo_relative, safe_name
 
 
 def prepare_comment_markdown(
@@ -35,7 +35,7 @@ def prepare_comment_markdown(
     """
     comments_dir_path = content_dir / comment.archetype / comment.page_id / comments_dir
     timestamp = datetime.utcnow()
-    name = safe_name(comment.author)
+    name = safe_name(comment.author, fallback=FALLBACK_NAME)
     file_path = comments_dir_path / f"{timestamp.strftime('%Y%m%d%H%M%S')}_{name}.md"
     # Defence in depth: Ensure concatenated path is still in comment dir
     check_repo_relative(file_path)
@@ -45,6 +45,7 @@ def prepare_comment_markdown(
         {"author": comment.author, "date": timestamp.isoformat() + "Z"},
         sort_keys=False,
         default_flow_style=False,
+        allow_unicode=True,
     )
     md_content = f"---\n{frontmatter}---\n\n{comment.message}\n"
     return (str(file_path), md_content)

@@ -1,6 +1,6 @@
 from pytest import raises
 
-from gitmentario.utils import safe_name
+from gitmentario.utils import FALLBACK_NAME, safe_name
 
 
 def test_basic_valid_name():
@@ -39,3 +39,18 @@ def test_empty_after_cleanup_raises():
 def test_allowable_chars_left_intact():
     allowed = "-_.()ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
     assert safe_name(allowed) == allowed
+
+
+def test_fallback_used_when_nothing_survives_cleanup():
+    assert safe_name("<<::>>", fallback=FALLBACK_NAME) == FALLBACK_NAME
+    assert safe_name("...", fallback=FALLBACK_NAME) == FALLBACK_NAME
+
+
+def test_non_latin_names_fall_back():
+    assert safe_name("日本語", fallback=FALLBACK_NAME) == FALLBACK_NAME
+    assert safe_name("Дмитрий", fallback=FALLBACK_NAME) == FALLBACK_NAME
+
+
+def test_fallback_unused_when_name_survives():
+    assert safe_name("Bob", fallback=FALLBACK_NAME) == "Bob"
+    assert safe_name("日本語 Bob", fallback=FALLBACK_NAME) == "Bob"
