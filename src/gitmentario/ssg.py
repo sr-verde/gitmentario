@@ -1,11 +1,11 @@
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 
 import yaml
 
 from .models import Comment
-from .utils import FALLBACK_NAME, check_repo_relative, safe_name
+from .utils import FALLBACK_NAME, check_repo_relative, rfc3339, safe_name
 
 _ANGLE_SHORTCODE = re.compile(r"\{\{<(?!/\*)(.*?)(?<!\*/)>\}\}", re.DOTALL)
 _PERCENT_SHORTCODE = re.compile(r"\{\{%(?!/\*)(.*?)(?<!\*/)%\}\}", re.DOTALL)
@@ -58,7 +58,7 @@ def prepare_comment_markdown(
         ValueError: If the assembled path would escape ``content_dir``.
     """
     comments_dir_path = content_dir / comment.archetype / comment.page_id / comments_dir
-    timestamp = datetime.utcnow()
+    timestamp = datetime.now(UTC)
     name = safe_name(comment.author, fallback=FALLBACK_NAME)
     file_path = comments_dir_path / f"{timestamp.strftime('%Y%m%d%H%M%S')}_{name}.md"
     # Defence in depth: Ensure concatenated path is still in comment dir
@@ -66,7 +66,7 @@ def prepare_comment_markdown(
     if not file_path.is_relative_to(content_dir):
         raise ValueError(f"Refusing to write outside '{content_dir}'")
     frontmatter = yaml.safe_dump(
-        {"author": comment.author, "date": timestamp.isoformat() + "Z"},
+        {"author": comment.author, "date": rfc3339(timestamp)},
         sort_keys=False,
         default_flow_style=False,
         allow_unicode=True,

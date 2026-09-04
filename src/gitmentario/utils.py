@@ -1,5 +1,6 @@
 import string
 import unicodedata
+from datetime import datetime
 from pathlib import PurePosixPath
 
 FALLBACK_NAME = "commenter"
@@ -66,3 +67,20 @@ def check_repo_relative(path: PurePosixPath) -> PurePosixPath:
     if path.is_absolute() or ".." in path.parts:
         raise ValueError("Must be a relative path without '..' segments")
     return path
+
+
+def rfc3339(moment: datetime) -> str:
+    """Format an aware datetime the way SSG front matter expects it.
+
+    An SSG parses `2026-09-04T15:13:38+00:00` and the same time ending in `Z`,
+    but not both suffixes at once, and rejects the whole page when the date will
+    not parse. `datetime.now(UTC)` is aware, so its `isoformat()` already ends in
+    `+00:00` and must not have a `Z` appended as well.
+
+    Args:
+        moment (datetime): A timezone-aware UTC timestamp.
+
+    Returns:
+        str: An RFC 3339 timestamp ending in `Z`.
+    """
+    return moment.isoformat().replace("+00:00", "Z")

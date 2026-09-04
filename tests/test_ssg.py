@@ -1,5 +1,5 @@
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 
 import yaml
@@ -116,6 +116,20 @@ def test_frontmatter_records_author_and_date() -> None:
     frontmatter = frontmatter_of(md_content)
     assert frontmatter["author"] == "Ada Lovelace"
     assert frontmatter["date"].endswith("Z")
+
+
+def test_frontmatter_date_is_a_parsable_utc_timestamp() -> None:
+    """A malformed date fails the SSG build for the whole site.
+
+    Checking only the `Z` suffix is not enough: an aware `isoformat()` plus a
+    literal `Z` yields `+00:00Z`, which ends in `Z`, parses nowhere, and made
+    Hugo reject every comment.
+    """
+    _, md_content = prepare()
+    parsed = datetime.fromisoformat(frontmatter_of(md_content)["date"])
+    assert parsed.tzinfo is not None
+    assert parsed.utcoffset() == timedelta(0)
+    assert abs((datetime.now(UTC) - parsed).total_seconds()) < 60
 
 
 @mark.parametrize("author", ["日本語", "Дмитрий", "Ada Lovelace", 'quote"and:colon'])

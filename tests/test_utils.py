@@ -1,8 +1,14 @@
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import PurePosixPath
 
 from pytest import mark, raises
 
-from gitmentario.utils import FALLBACK_NAME, check_repo_relative, safe_name
+from gitmentario.utils import (
+    FALLBACK_NAME,
+    check_repo_relative,
+    rfc3339,
+    safe_name,
+)
 
 
 @mark.parametrize(
@@ -75,3 +81,24 @@ def test_check_repo_relative_accepts_relative_paths(path: str) -> None:
 def test_check_repo_relative_rejects_paths_leaving_the_repository(path: str) -> None:
     with raises(ValueError):
         check_repo_relative(PurePosixPath(path))
+
+
+def test_rfc3339_ends_in_z_without_a_double_suffix() -> None:
+    """`isoformat()` on an aware datetime already carries `+00:00`.
+
+    Appending a literal `Z` to that yields `+00:00Z`, which still ends in `Z`
+    but parses nowhere and makes an SSG reject the page.
+    """
+    formatted = rfc3339(datetime(2026, 9, 4, 15, 13, 38, tzinfo=UTC))
+    assert formatted == "2026-09-04T15:13:38Z"
+
+
+def test_rfc3339_round_trips() -> None:
+    moment = datetime.now(UTC)
+    assert datetime.fromisoformat(rfc3339(moment)) == moment
+
+
+def test_rfc3339_leaves_other_offsets_intact() -> None:
+    """Only UTC collapses to `Z`; a different offset must stay explicit."""
+    berlin = datetime(2026, 9, 4, 17, 13, 38, tzinfo=timezone(timedelta(hours=2)))
+    assert rfc3339(berlin) == "2026-09-04T17:13:38+02:00"
