@@ -16,6 +16,7 @@ services:
       COMMENTS_DIR: "${COMMENTS_DIR:-comments}"
       GIT_PUSH: "${GIT_PUSH:-false}"
       TARGET_BRANCH: "${TARGET_BRANCH:-main}"
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
       FORGE__TYPE: "${FORGE__TYPE:-gitlab}"
       FORGE__BASE_URL: "${FORGE__BASE_URL:?set FORGE__BASE_URL in your .env}"
